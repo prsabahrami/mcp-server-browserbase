@@ -1,5 +1,5 @@
 /**
- * Sampling module for the Browserbase MCP server
+ * Sampling module for the TzafonWright MCP server
  * Implements sampling capability to request LLM completions from clients
  * Docs: https://modelcontextprotocol.io/docs/concepts/sampling
  */
@@ -15,6 +15,10 @@ export const SAMPLING_CAPABILITY = {};
  * The server sends sampling/createMessage requests to ask the client
  * for LLM completions. This is useful for intelligent browser automation
  * where the server needs AI assistance to analyze pages and make decisions.
+ *
+ * TzafonWright has built-in GPT-4 Vision integration for AI-powered actions,
+ * but sampling can provide additional client-side AI assistance for complex
+ * decision making and page analysis scenarios.
  *
  * Currently, sampling support depends on the MCP client implementation.
  * Not all clients support sampling yet. (ie claude desktop)
@@ -34,11 +38,11 @@ export type SamplingMessage = {
 };
 
 /**
- * Pre-built sampling templates for common browser automation scenarios
+ * Pre-built sampling templates for TzafonWright browser automation scenarios
  */
 export const SAMPLING_TEMPLATES = {
   /**
-   * Analyze a page to determine what actions are available
+   * Analyze a page to determine what actions are available for TzafonWright
    */
   analyzePageActions: (
     pageContent: string,
@@ -48,17 +52,24 @@ export const SAMPLING_TEMPLATES = {
       role: "user",
       content: {
         type: "text",
-        text: `Analyze this webpage and identify the main interactive elements and possible actions.
+        text: `Analyze this webpage for TzafonWright coordinate-based automation and identify the main interactive elements.
         
 Page content:
 ${pageContent}
 
-Please list:
-1. Main navigation elements
-2. Forms and input fields
-3. Buttons and clickable elements
-4. Key information displayed
-5. Suggested next actions for common automation tasks`,
+Please provide:
+1. Main interactive elements with approximate coordinate ranges
+2. Forms and input fields locations
+3. Buttons and clickable elements positions
+4. Key information displayed and extraction opportunities
+5. Suggested TzafonWright actions with natural language commands
+6. Potential challenges for coordinate-based automation
+
+Format suggestions as TzafonWright commands:
+- "Click the search box" (for AI-powered actions)
+- "Click at coordinates X,Y" (for precise actions)
+- "Type 'text'" for text input
+- "Scroll down/up" for navigation`,
       },
     },
     ...(screenshot
@@ -76,7 +87,7 @@ Please list:
   ],
 
   /**
-   * Determine next steps in a multi-step process
+   * Determine next steps in a multi-step TzafonWright automation process
    */
   determineNextStep: (
     currentState: string,
@@ -86,24 +97,31 @@ Please list:
       role: "user",
       content: {
         type: "text",
-        text: `Current state of the browser automation:
+        text: `Current state of the TzafonWright browser automation:
 ${currentState}
 
 Goal: ${goal}
 
-What should be the next action to take? Consider:
-1. Are we on the right page?
-2. What elements need to be interacted with?
-3. Is there any data to extract first?
-4. Are there any errors or blockers visible?
+What should be the next TzafonWright action? Consider:
+1. Are we on the right page for coordinate-based interaction?
+2. What elements need to be clicked or interacted with?
+3. Should we take a screenshot first for AI analysis?
+4. Is there any data to extract using visual guidance?
+5. Are there any errors or blockers visible?
+6. Do we need to use multi-session tools for parallel processing?
 
-Provide a specific, actionable next step.`,
+Provide a specific TzafonWright command:
+- Natural language: "Click the login button"
+- Coordinate-based: "Click at coordinates 100,200"
+- Screenshot: "Take a screenshot to analyze the page"
+- Extract: "Extract product information from this page"
+- Multi-session: Consider if parallel sessions would be beneficial`,
       },
     },
   ],
 
   /**
-   * Extract structured data from a page
+   * Extract structured data from a page using TzafonWright approach
    */
   extractStructuredData: (
     pageContent: string,
@@ -113,7 +131,7 @@ Provide a specific, actionable next step.`,
       role: "user",
       content: {
         type: "text",
-        text: `Extract structured data from this webpage according to the schema.
+        text: `Extract structured data from this webpage for TzafonWright coordinate-based automation.
 
 Page content:
 ${pageContent}
@@ -121,7 +139,15 @@ ${pageContent}
 Expected data schema:
 ${dataSchema}
 
-Return the extracted data as valid JSON matching the schema. If any fields cannot be found, use null.`,
+Provide both:
+1. The extracted data as valid JSON matching the schema (use null for missing fields)
+2. TzafonWright extraction strategy with specific actions:
+   - Coordinate ranges for clicking elements to reveal data
+   - Screenshot recommendations for visual analysis
+   - Scroll actions needed to access hidden content
+   - Multiple extraction steps if data is spread across interactions
+
+Consider TzafonWright's coordinate-based approach where data might need to be revealed through clicks, scrolls, or form interactions before it can be extracted.`,
       },
     },
   ],

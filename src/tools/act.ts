@@ -35,7 +35,7 @@ const actSchema: ToolSchema<typeof ActInputSchema> = {
     "**AI Vision**: Automatically analyzes screenshots to find elements and determine coordinates. " +
     "**Fallback**: If AI can't find elements, provides intelligent suggestions and manual coordinate options. " +
     "**Coordinate Mode**: Still supports direct coordinates like 'Click at coordinates 100,200'. " +
-    "**Text Input**: Use 'Type \"text\"' for entering text. **Scrolling**: 'Scroll down', 'Scroll up'. " +
+    "**Text Input**: Use 'Type \"text\"' for entering text. **Key Actions**: 'Press Enter'. **Scrolling**: 'Scroll down', 'Scroll up'. " +
     "Requires OPENAI_API_KEY environment variable for AI features.",
   inputSchema: ActInputSchema,
 };
@@ -116,6 +116,17 @@ function parseAction(action: string, variables?: Record<string, unknown>) {
     };
   }
 
+  // Parse key press actions
+  if (
+    lowerAction.includes("press enter") ||
+    lowerAction.includes("hit enter")
+  ) {
+    return {
+      type: "key",
+      key: "Enter",
+    };
+  }
+
   return null;
 }
 
@@ -176,7 +187,7 @@ async function handleAct(
           const suggestions =
             await aiVisionService.getElementSuggestions(screenshotBase64);
 
-          const guidanceText = `🤖 **AI Vision Analysis**\n\n❌ Could not find element for: "${params.action}"\n${aiResult.error ? `\n🔍 **AI Feedback**: ${aiResult.error}` : ""}\n${aiResult.reasoning ? `\n💭 **Analysis**: ${aiResult.reasoning}` : ""}\n\n🎯 **Available Elements Detected:**\n${suggestions.length > 0 ? suggestions.map((s) => `- "${s}"`).join("\n") : "No clear interactive elements detected"}\n\n🔧 **Alternative Actions You Can Try:**\n- Use one of the detected elements above\n- "Click at coordinates X,Y" (manual coordinates)\n- "Type 'text'" (for typing)\n- "Scroll down" or "Scroll up"\n\n📸 **Current Screenshot Below** - Use it to identify coordinates manually if needed:`;
+          const guidanceText = `🤖 **AI Vision Analysis**\n\n❌ Could not find element for: "${params.action}"\n${aiResult.reasoning ? `\n💭 **Analysis**: ${aiResult.reasoning}` : ""}\n\n🎯 **Available Elements Detected:**\n${suggestions.length > 0 ? suggestions.map((s) => `- "${s}"`).join("\n") : "No clear interactive elements detected"}\n\n🔧 **Alternative Actions You Can Try:**\n- Use one of the detected elements above\n- "Click at coordinates X,Y" (manual coordinates)\n- "Type 'text'" (for typing)\n- "Scroll down" or "Scroll up"\n\n📸 **Current Screenshot Below** - Use it to identify coordinates manually if needed:`;
 
           const content: (TextContent | ImageContent)[] = [
             { type: "text", text: guidanceText },
@@ -208,6 +219,9 @@ async function handleAct(
             delta_x: parsedAction.delta_x || 0,
             delta_y: parsedAction.delta_y || 0,
           });
+          break;
+        case "key":
+          result = await client.key(parsedAction.key!);
           break;
         default:
           throw new Error(`Unsupported action type: ${parsedAction.type}`);

@@ -61,31 +61,37 @@ INSTRUCTIONS:
 6. For buttons, target the center of the button
 7. For links, target the center of the clickable text
 
-RESPONSE FORMAT (JSON only):
+RESPONSE FORMAT - Must be valid JSON only:
+
+For FOUND elements:
 {
-  "found": true/false,
-  "x": number (pixel coordinate from left),
-  "y": number (pixel coordinate from top),
-  "confidence": number (0.0 to 1.0),
-  "reasoning": "Brief explanation of what you found and why you chose these coordinates",
-  "element_description": "What type of element this is (button, input, link, etc.)"
+  "found": true,
+  "x": [number],
+  "y": [number], 
+  "confidence": [0.0-1.0],
+  "reasoning": "[brief explanation]",
+  "element_description": "[button/input/link/etc]"
 }
 
-If you cannot find the element, respond with:
+For NOT FOUND elements:
 {
   "found": false,
   "confidence": 0.0,
-  "reasoning": "Explanation of why the element wasn't found",
-  "suggestions": ["Alternative descriptions the user could try"]
+  "reasoning": "[why element wasn't found]",
+  "suggestions": ["[alternative 1]", "[alternative 2]"]
 }
 
-EXAMPLES:
-- "Click the search box" → Find the main search input field
-- "Click the login button" → Find the login/sign in button
-- "Click the menu" → Find the hamburger menu or navigation menu
-- "Click on Apple" → Find text or link containing "Apple"
+CRITICAL: 
+- Respond with ONLY valid JSON
+- Keep reasoning brief (under 100 characters)
+- Provide 2-4 suggestions maximum
+- No markdown, no extra text, just JSON
 
-Respond with ONLY the JSON object, no other text.`;
+EXAMPLES:
+- "Click the search box" → Find main search input
+- "Click the login button" → Find login/sign in button  
+- "Click the menu" → Find hamburger/navigation menu
+- "Click on Apple" → Find "Apple" text/link`;
 
       const response = await this.openai!.chat.completions.create({
         model: "gpt-4o",
@@ -104,7 +110,7 @@ Respond with ONLY the JSON object, no other text.`;
             ],
           },
         ],
-        max_tokens: 800,
+        max_tokens: 1500,
         temperature: 0.1,
       });
 
@@ -116,27 +122,71 @@ Respond with ONLY the JSON object, no other text.`;
         };
       }
 
+      // Clean the response first - remove markdown code blocks and unwanted text
+      let cleanedContent = content.trim();
+
       try {
+        // Remove markdown code blocks
+        cleanedContent = cleanedContent
+          .replace(/```json\s*\n?/g, "")
+          .replace(/```\s*$/g, "");
+
+        // Handle refusal responses
+        if (
+          cleanedContent.toLowerCase().includes("i'm sorry, i can't assist") ||
+          cleanedContent.toLowerCase().includes("i cannot assist") ||
+          cleanedContent.toLowerCase().includes("i'm not able to")
+        ) {
+          return {
+            success: false,
+            error: "AI Vision service declined to analyze the image",
+            reasoning: "Try a different description or use manual coordinates",
+          };
+        }
+
         // Try to parse the JSON response
         let result;
         try {
-          result = JSON.parse(content);
+          result = JSON.parse(cleanedContent);
         } catch {
           // If JSON parsing fails, try to extract values from partial JSON
           console.error(
             "JSON parsing failed, attempting to extract values:",
-            content,
+            cleanedContent,
           );
 
           // Extract values using regex as fallback
-          const foundMatch = content.match(/"found":\s*(true|false)/);
-          const xMatch = content.match(/"x":\s*(\d+)/);
-          const yMatch = content.match(/"y":\s*(\d+)/);
-          const confMatch = content.match(/"confidence":\s*([0-9.]+)/);
-          const reasoningMatch = content.match(/"reasoning":\s*"([^"]+)"/);
+          const foundMatch = cleanedContent.match(/"found":\s*(true|false)/);
+          const xMatch = cleanedContent.match(/"x":\s*(\d+)/);
+          const yMatch = cleanedContent.match(/"y":\s*(\d+)/);
+          const confMatch = cleanedContent.match(/"confidence":\s*([0-9.]+)/);
+
+          // More flexible reasoning extraction that handles multiline content
+          const reasoningMatch = cleanedContent.match(
+            /"reasoning":\s*"([\s\S]*?)"/,
+          );
+
+          // Extract suggestions array if present
+          const suggestionsMatch = cleanedContent.match(
+            /"suggestions":\s*\[([\s\S]*?)\]/,
+          );
+          let suggestions: string[] = [];
+          if (suggestionsMatch) {
+            try {
+              // Try to parse the suggestions array
+              const suggestionsStr = `[${suggestionsMatch[1]}]`;
+              suggestions = JSON.parse(suggestionsStr);
+            } catch {
+              // Fallback: extract quoted strings from suggestions
+              const quotedStrings = suggestionsMatch[1].match(/"([^"]+)"/g);
+              suggestions = quotedStrings
+                ? quotedStrings.map((s) => s.slice(1, -1))
+                : [];
+            }
+          }
 
           if (foundMatch && foundMatch[1] === "true" && xMatch && yMatch) {
-            // We have enough info to proceed
+            // We have enough info to proceed with found element
             result = {
               found: true,
               x: parseInt(xMatch[1]),
@@ -147,9 +197,19 @@ Respond with ONLY the JSON object, no other text.`;
                 : "AI found element but response was truncated",
               element_description: "Element (from partial response)",
             };
+          } else if (foundMatch && foundMatch[1] === "false") {
+            // Handle not found case with partial JSON
+            result = {
+              found: false,
+              confidence: confMatch ? parseFloat(confMatch[1]) : 0.0,
+              reasoning: reasoningMatch
+                ? reasoningMatch[1].replace(/\\n/g, "\n").trim()
+                : "Element not found but response was truncated",
+              suggestions: suggestions.length > 0 ? suggestions : undefined,
+            };
           } else {
             throw new Error(
-              "Could not extract coordinates from partial response",
+              "Could not extract sufficient information from partial response",
             );
           }
         }
@@ -175,11 +235,14 @@ Respond with ONLY the JSON object, no other text.`;
           };
         }
       } catch {
-        console.error("Failed to parse AI vision response:", content);
+        console.error(
+          "Failed to parse AI vision response:",
+          cleanedContent || content,
+        );
         return {
           success: false,
           error: "Failed to parse AI vision response",
-          reasoning: content.substring(0, 300),
+          reasoning: (cleanedContent || content).substring(0, 300),
         };
       }
     } catch (error) {

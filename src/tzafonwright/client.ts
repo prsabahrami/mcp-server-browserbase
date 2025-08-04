@@ -118,17 +118,6 @@ export class TzafonWrightClient {
               ),
             ]);
 
-            // Test the connection with a basic command (with timeout)
-            await Promise.race([
-              client.setViewportSize({ width: 1280, height: 720 }),
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error("Viewport setup timeout")),
-                  connectionTimeout,
-                ),
-              ),
-            ]);
-
             return {
               success: true,
               client,
@@ -196,7 +185,6 @@ export class TzafonWrightClient {
         `[TzafonWright] Batch ${batchIndex + 1} complete: ${batchSuccessful} successful, ${batchFailed} failed`,
       );
 
-      // Add delay between batches (except for the last batch)
       if (batchIndex < totalBatches - 1) {
         console.error(
           `[TzafonWright] Waiting ${batchDelay}ms before next batch...`,
@@ -300,7 +288,6 @@ export class TzafonWrightClient {
     }
   }
 
-  // Convenience methods matching Stagehand API
   async goto(url: string, options?: { timeout?: number }): Promise<Result> {
     return this.sendAction({
       action_type: ActionType.GOTO,

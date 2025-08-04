@@ -123,7 +123,6 @@ export const createBulkSessionsTool = defineTool({
     { count, namePrefix = "session", batchSize, batchDelay },
   ): Promise<ToolResult> => {
     try {
-      // Use TzafonWright's optimized bulk session creation via proxy infrastructure
       const bulkResults = await import("../tzafonwright/client.js").then(
         (module) =>
           module.TzafonWrightClient.createBulkSessions(
@@ -138,13 +137,11 @@ export const createBulkSessionsTool = defineTool({
           ),
       );
 
-      // Store successful sessions in the session manager
       const sessions: TzafonWrightSession[] = [];
       const errors: string[] = [];
 
       for (const result of bulkResults.successful) {
         try {
-          // Store the session in our session manager
           const sessionData = {
             id: result.sessionId,
             client: result.client,
@@ -159,12 +156,10 @@ export const createBulkSessionsTool = defineTool({
           errors.push(
             `${result.name}: Failed to store session - ${errorMessage}`,
           );
-          // Clean up the client if storing failed
           await result.client.close().catch(() => {});
         }
       }
 
-      // Add failed connection attempts to errors
       bulkResults.failed.forEach((failure) => {
         errors.push(`${failure.name}: ${failure.error}`);
       });
@@ -175,7 +170,6 @@ export const createBulkSessionsTool = defineTool({
       let statusText = `🎉 **Batched Session Creation Complete!**\n\n`;
       statusText += `✅ **Successfully Created**: ${successCount}/${count} sessions\n`;
 
-      // Add batch information
       if (bulkResults.batchResults.length > 1) {
         statusText += `\n📊 **Batch Results**:\n`;
         bulkResults.batchResults.forEach((batch) => {
@@ -239,7 +233,6 @@ export const createBulkSessionsTool = defineTool({
   },
 });
 
-// Create session tool
 export const createSessionTool = defineTool({
   capability: "create_session",
   schema: {
