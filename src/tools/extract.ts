@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Tool, ToolSchema, ToolResult } from "./tool.js";
 import type { Context } from "../context.js";
 import type { ToolActionResult } from "../types/types.js";
+import { ImageContent, TextContent } from "@modelcontextprotocol/sdk/types.js";
 
 const ExtractInputSchema = z.object({
   instruction: z
@@ -19,15 +20,11 @@ const ExtractInputSchema = z.object({
 type ExtractInput = z.infer<typeof ExtractInputSchema>;
 
 const extractSchema: ToolSchema<typeof ExtractInputSchema> = {
-  name: "browserbase_stagehand_extract",
+  name: "tzafonwright_extract",
   description:
-    "Extracts structured information and text content from the current web page based on specific instructions " +
-    "and a defined schema. This tool is ideal for scraping data, gathering information, or pulling specific " +
-    "content from web pages. Use this tool when you need to get text content, data, or information from a page " +
-    "rather than interacting with elements. For interactive elements like buttons, forms, or clickable items, " +
-    "use the observe tool instead. The extraction works best when you provide clear, specific instructions " +
-    "about what to extract and a well-defined JSON schema for the expected output format. This ensures " +
-    "the extracted data is properly structured and usable.",
+    "Enhanced extraction tool for TzafonWright. Automatically captures a screenshot of the current page and " +
+    "provides detailed guidance on how to extract the requested information using coordinate-based actions. " +
+    "Includes visual analysis with step-by-step instructions, pro tips, and example commands tailored to your extraction needs.",
   inputSchema: ExtractInputSchema,
 };
 
@@ -37,21 +34,49 @@ async function handleExtract(
 ): Promise<ToolResult> {
   const action = async (): Promise<ToolActionResult> => {
     try {
-      const stagehand = await context.getStagehand();
+      const client = await context.getTzafonWrightClient();
 
-      const extraction = await stagehand.page.extract(params.instruction);
+      if (!client) {
+        throw new Error("No TzafonWright client available");
+      }
 
+      // Automatically take a screenshot to help with extraction guidance
+      const screenshotResult = await client.screenshot();
+
+      if (!screenshotResult.success) {
+        throw new Error(
+          screenshotResult.error_message || "Failed to capture screenshot",
+        );
+      }
+
+      const content: (TextContent | ImageContent)[] = [
+        {
+          type: "text",
+          text: `Extraction instruction received: "${params.instruction}"\n\n📸 Current page screenshot captured to help with extraction.\n\n⚡ TzafonWright Extraction Guide:\n\nSince TzafonWright uses coordinate-based actions, here's how to extract "${params.instruction}":\n\n1. 🔍 **Analyze the screenshot below** to identify the elements you need\n2. 📍 **Note the coordinates** of text, buttons, or input fields\n3. 🎯 **Use specific actions** like:\n   - Click at coordinates X,Y to interact with elements\n   - Right-click for context menus\n   - Scroll to reveal more content\n4. 📝 **Extract text** by taking additional screenshots after interactions\n\n💡 **Pro Tips:**\n- For tables: Click each cell individually\n- For lists: Scroll through and capture multiple screenshots\n- For forms: Click inputs to reveal values\n- For dynamic content: Wait between actions\n\n🤖 Use the other TzafonWright tools (act, navigate, screenshot) to systematically extract the information you need.`,
+        },
+      ];
+
+      // Include the screenshot if available
+      if (screenshotResult.image) {
+        content.push({
+          type: "image",
+          data: screenshotResult.image.toString("base64"),
+          mimeType: "image/png",
+        });
+      }
+
+      return { content };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      // Fallback to basic guidance if screenshot fails
       return {
         content: [
           {
             type: "text",
-            text: `Extracted content:\n${JSON.stringify(extraction, null, 2)}`,
+            text: `Extraction instruction received: "${params.instruction}"\n\n⚠️ Could not capture screenshot: ${errorMsg}\n\n📋 TzafonWright Extraction Steps:\n1. Use tzafonwright_screenshot to capture the current page\n2. Analyze the image to identify target elements\n3. Use tzafonwright_act with coordinates to interact with elements\n4. Take additional screenshots as needed\n5. Repeat until you have extracted all required information\n\nExample commands:\n- "Take a screenshot"\n- "Click at coordinates 300,150" \n- "Scroll down"\n- "Type 'search term'"\n\nTzafonWright specializes in precise coordinate-based automation.`,
           },
         ],
       };
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to extract content: ${errorMsg}`);
     }
   };
 

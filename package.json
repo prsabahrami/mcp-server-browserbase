@@ -1,16 +1,16 @@
 {
-  "name": "@browserbasehq/mcp-server-browserbase",
+  "name": "@prsabahrami/mcp-server-tzafonwright",
   "version": "2.0.0",
-  "description": "MCP server for AI web browser automation using Browserbase and Stagehand",
+  "description": "MCP server for AI web browser automation using TzafonWright",
   "license": "Apache-2.0",
-  "author": "Browserbase, Inc. (https://www.browserbase.com/)",
-  "homepage": "https://www.browserbase.com",
+  "author": "Parsabahrami",
+  "homepage": "https://www.tzafonwright.com",
   "bugs": "https://github.com/modelcontextprotocol/servers/issues",
   "type": "module",
   "main": "./cli.js",
   "module": "./src/index.ts",
   "bin": {
-    "mcp-server-browserbase": "cli.js"
+    "mcp-server-tzafonwright": "cli.js"
   },
   "files": [
     "assets",
@@ -26,7 +26,7 @@
     "prepare": "husky && npm run build",
     "watch": "tsc --watch",
     "smithery": "npx @smithery/cli dev src/index.ts",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+    "inspector": "npx @modelcontextprotocol/inspector /Users/parsa/Desktop/mcp-server-browserbase/cli.js",
     "lint": "eslint . --ext .ts",
     "prettier:check": "prettier --check .",
     "prettier:fix": "prettier --write .",
@@ -41,17 +41,19 @@
     ]
   },
   "dependencies": {
-    "@browserbasehq/sdk": "^2.6.0",
-    "@browserbasehq/stagehand": "^2.4.0",
     "@modelcontextprotocol/sdk": "^1.13.1",
     "@smithery/cli": "^1.2.15",
     "commander": "^14.0.0",
     "dotenv": "^16.4.6",
+    "openai": "^5.11.0",
     "playwright-core": "^1.53.2",
+    "ws": "^8.18.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
+    "@types/node": "^20.19.9",
+    "@types/ws": "^8.5.13",
     "eslint": "^9.29.0",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.2.0",

@@ -11,9 +11,9 @@ const ScreenshotInputSchema = z.object({
 type ScreenshotInput = z.infer<typeof ScreenshotInputSchema>;
 
 const screenshotSchema: ToolSchema<typeof ScreenshotInputSchema> = {
-  name: "browserbase_screenshot",
+  name: "tzafonwright_screenshot",
   description:
-    "Takes a screenshot of the current page. Use this tool to learn where you are on the page when controlling the browser with Stagehand. Only use this tool when the other tools are not sufficient to get the information you need.",
+    "Takes a screenshot of the current page. Use this tool to learn where you are on the page when controlling the browser with TzafonWright. Only use this tool when the other tools are not sufficient to get the information you need.",
   inputSchema: ScreenshotInputSchema,
 };
 
@@ -23,23 +23,24 @@ async function handleScreenshot(
 ): Promise<ToolResult> {
   const action = async (): Promise<ToolActionResult> => {
     try {
-      const page = await context.getActivePage();
-      if (!page) {
-        throw new Error("No active page available");
+      const client = await context.getTzafonWrightClient();
+      if (!client) {
+        throw new Error("No TzafonWright client available");
       }
 
-      const screenshotBuffer = await page.screenshot({
-        fullPage: false,
-      });
+      const result = await client.screenshot();
+
+      if (!result.success || !result.image) {
+        throw new Error(result.error_message || "Screenshot failed");
+      }
 
       // Convert buffer to base64 string and store in memory
-      const screenshotBase64 = screenshotBuffer.toString("base64");
+      const screenshotBase64 = result.image.toString("base64");
       const name = params.name
         ? `screenshot-${params.name}-${new Date()
             .toISOString()
             .replace(/:/g, "-")}`
-        : `screenshot-${new Date().toISOString().replace(/:/g, "-")}` +
-          context.config.browserbaseProjectId;
+        : `screenshot-${new Date().toISOString().replace(/:/g, "-")}-tzafonwright`;
       screenshots.set(name, screenshotBase64);
 
       // Notify the client that the resources changed

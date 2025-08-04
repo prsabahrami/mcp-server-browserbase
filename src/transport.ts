@@ -11,14 +11,11 @@ export async function startStdioTransport(
   serverList: ServerList,
   config?: Config,
 ) {
-  // Check if we're using the default model without an API key
-  if (config) {
-    const modelName = config.modelName || "google/gemini-2.0-flash";
-    const hasModelApiKey = config.modelApiKey || process.env.GEMINI_API_KEY;
-
-    if (modelName.includes("gemini") && !hasModelApiKey) {
-      console.error(`Need to set GEMINI_API_KEY in your environment variables`);
-    }
+  // Check TzafonWright proxy URL
+  if (config && !config.proxyUrl) {
+    console.error(
+      `Need to set TZAFONWRIGHT_PROXY_URL in your environment variables or provide --proxyUrl`,
+    );
   }
 
   const server = await serverList.create();
@@ -107,6 +104,6 @@ export function startHttpTransport(
       ),
       "If your client supports streamable HTTP, you can use the /mcp endpoint instead.",
     ].join("\n");
-    console.log(message);
+    console.error(message);
   });
 }

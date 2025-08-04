@@ -1,32 +1,23 @@
-import type { Stagehand, Browser, Page } from "@browserbasehq/stagehand";
+import { TzafonWrightClient } from "../tzafonwright/client.js";
 import { ImageContent, TextContent } from "@modelcontextprotocol/sdk/types.js";
 import { Tool } from "../tools/tool.js";
 import { InputType } from "../tools/tool.js";
 
-export type StagehandSession = {
+export type TzafonWrightSession = {
   id: string; // MCP-side ID
-  stagehand: Stagehand; // owns the Browserbase session
-  page: Page;
-  browser: Browser;
+  client: TzafonWrightClient; // WebSocket client to TzafonWright server
   created: number;
-  metadata?: Record<string, any>; // optional extras (proxy, contextId, bbSessionId)
+  metadata?: Record<string, any>; // optional extras (proxy settings, etc.)
 };
 
 export type CreateSessionParams = {
-  apiKey?: string;
-  projectId?: string;
-  modelName?: string;
-  modelApiKey?: string;
-  browserbaseSessionID?: string;
-  browserbaseSessionCreateParams?: any;
+  proxyUrl?: string;
   meta?: Record<string, any>;
 };
 
 export type BrowserSession = {
-  browser: Browser;
-  page: Page;
+  client: TzafonWrightClient;
   sessionId: string;
-  stagehand: Stagehand;
 };
 
 export type ToolActionResult =

@@ -1,10 +1,10 @@
-import type { Stagehand } from "@browserbasehq/stagehand";
+import type { TzafonWrightClient } from "./tzafonwright/client.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import type { Config } from "../config.d.ts";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { listResources, readResource } from "./mcp/resources.js";
 import { getSession, defaultSessionId } from "./sessionManager.js";
-import type { MCPTool, BrowserSession } from "./types/types.js";
+import type { MCPTool } from "./types/types.js";
 
 export class Context {
   public readonly config: Config;
@@ -21,40 +21,30 @@ export class Context {
   }
 
   /**
-   * Gets the Stagehand instance for the current session from SessionManager
+   * Gets the TzafonWright client instance for the current session from SessionManager
    */
-  public async getStagehand(
+  public async getTzafonWrightClient(
     sessionId: string = this.currentSessionId,
-  ): Promise<Stagehand> {
+  ): Promise<TzafonWrightClient> {
     const session = await getSession(sessionId, this.config);
     if (!session) {
       throw new Error(`No session found for ID: ${sessionId}`);
     }
-    return session.stagehand;
+    return session.client;
   }
 
-  public async getActivePage(): Promise<BrowserSession["page"] | null> {
-    // Get page from session manager
-    const session = await getSession(this.currentSessionId, this.config);
-    if (session && session.page && !session.page.isClosed()) {
-      return session.page;
-    }
-
-    return null;
-  }
-
-  public async getActiveBrowser(
+  public async getActiveClient(
     createIfMissing: boolean = true,
-  ): Promise<BrowserSession["browser"] | null> {
+  ): Promise<TzafonWrightClient | null> {
     const session = await getSession(
       this.currentSessionId,
       this.config,
       createIfMissing,
     );
-    if (!session || !session.browser || !session.browser.isConnected()) {
+    if (!session || !session.client) {
       return null;
     }
-    return session.browser;
+    return session.client;
   }
 
   async run(tool: MCPTool, args: unknown): Promise<CallToolResult> {

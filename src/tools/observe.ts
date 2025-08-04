@@ -28,16 +28,11 @@ const ObserveInputSchema = z.object({
 type ObserveInput = z.infer<typeof ObserveInputSchema>;
 
 const observeSchema: ToolSchema<typeof ObserveInputSchema> = {
-  name: "browserbase_stagehand_observe",
+  name: "tzafonwright_observe",
   description:
-    "Observes and identifies specific interactive elements on the current web page that can be used for subsequent actions. " +
-    "This tool is specifically designed for finding actionable (interactable) elements such as buttons, links, form fields, " +
-    "dropdowns, checkboxes, and other UI components that you can interact with. Use this tool when you need to locate " +
-    "elements before performing actions with the act tool. DO NOT use this tool for extracting text content or data - " +
-    "use the extract tool instead for that purpose. The observe tool returns detailed information about the identified " +
-    "elements including their properties, location, and interaction capabilities. This information can then be used " +
-    "to craft precise actions. The more specific your observation instruction, the more accurate the element identification " +
-    "will be. Think of this as your 'eyes' on the page to find exactly what you need to interact with.",
+    "Observes the current web page state. Since TzafonWright doesn't have AI-powered element detection, " +
+    "this tool will suggest taking a screenshot to manually identify elements and their coordinates. " +
+    "Use this in combination with the screenshot tool to identify clickable elements and their positions.",
   inputSchema: ObserveInputSchema,
 };
 
@@ -47,18 +42,13 @@ async function handleObserve(
 ): Promise<ToolResult> {
   const action = async (): Promise<ToolActionResult> => {
     try {
-      const stagehand = await context.getStagehand();
-
-      const observations = await stagehand.page.observe({
-        instruction: params.instruction,
-        returnAction: params.returnAction,
-      });
-
+      // TzafonWright doesn't have AI-powered observation capabilities
+      // Suggest taking a screenshot to manually identify elements
       return {
         content: [
           {
             type: "text",
-            text: `Observations: ${JSON.stringify(observations)}`,
+            text: `Observation instruction: "${params.instruction}"\n\nSince TzafonWright doesn't have AI-powered element detection, please:\n1. Take a screenshot to see the current page\n2. Manually identify the elements you described\n3. Note their approximate coordinates\n4. Use the act tool with specific coordinates\n\nFor example, if you see a button at position (300, 150), use: "Click at coordinates 300,150"`,
           },
         ],
       };

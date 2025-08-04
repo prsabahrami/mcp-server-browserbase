@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import createServerFunction from "./index.js";
 import { ServerList } from "./server.js";
 import { startHttpTransport, startStdioTransport } from "./transport.js";
-import * as stagehandStore from "./stagehandStore.js";
+import * as tzafonwrightStore from "./tzafonwrightStore.js";
 
 import { resolveConfig } from "./config.js";
 
@@ -33,38 +33,17 @@ const packageJSON = JSON.parse(packageJSONBuffer.toString());
 program
   .version("Version " + packageJSON.version)
   .name(packageJSON.name)
-  .option("--browserbaseApiKey <key>", "The Browserbase API Key to use")
-  .option("--browserbaseProjectId <id>", "The Browserbase Project ID to use")
-  .option("--proxies", "Use Browserbase proxies.")
   .option(
-    "--advancedStealth",
-    "Use advanced stealth mode. Only available to Browserbase Scale Plan users.",
-  )
-  .option("--contextId <contextId>", "Browserbase Context ID to use.")
-  .option(
-    "--persist [boolean]",
-    "Whether to persist the Browserbase context",
-    true,
+    "--proxyUrl <url>",
+    "The TzafonWright proxy WebSocket URL (e.g., ws://34.123.107.160:80)",
   )
   .option("--port <port>", "Port to listen on for SHTTP transport.")
   .option(
     "--host <host>",
     "Host to bind server to. Default is localhost. Use 0.0.0.0 to bind to all interfaces.",
   )
-  .option(
-    "--cookies [json]",
-    'JSON array of cookies to inject into the browser. Format: [{"name":"cookie1","value":"val1","domain":"example.com"}, ...]',
-  )
   .option("--browserWidth <width>", "Browser width to use for the browser.")
   .option("--browserHeight <height>", "Browser height to use for the browser.")
-  .option(
-    "--modelName <model>",
-    "The model to use for Stagehand (default: google/gemini-2.0-flash)",
-  )
-  .option(
-    "--modelApiKey <key>",
-    "API key for the custom model provider (required when using custom models)",
-  )
   .action(async (options) => {
     const config = await resolveConfig(options);
     const serverList = new ServerList(async () =>
@@ -83,7 +62,7 @@ function setupExitWatchdog(serverList: ServerList) {
   const handleExit = async () => {
     setTimeout(() => process.exit(0), 15000);
     try {
-      await Promise.all([stagehandStore.removeAll(), serverList.closeAll()]);
+      await Promise.all([tzafonwrightStore.removeAll(), serverList.closeAll()]);
     } catch (error) {
       console.error("Error during cleanup:", error);
     }

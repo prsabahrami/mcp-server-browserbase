@@ -1,7 +1,5 @@
-import { Page, BrowserContext } from "@browserbasehq/stagehand";
 import type { Config } from "../config.d.ts";
-import type { Cookie } from "playwright-core";
-import { createStagehandInstance } from "./stagehandStore.js";
+import { createTzafonWrightClient } from "./tzafonwrightStore.js";
 import type { BrowserSession } from "./types/types.js";
 
 // Global state for managing browser sessions
@@ -11,7 +9,7 @@ const browsers = new Map<string, BrowserSession>();
 let defaultBrowserSession: BrowserSession | null = null;
 
 // Define a specific ID for the default session
-export const defaultSessionId = `browserbase_session_main_${Date.now()}`;
+export const defaultSessionId = `tzafonwright_session_main_${Date.now()}`;
 
 // Keep track of the active session ID. Defaults to the main session.
 let activeSessionId: string = defaultSessionId;
@@ -38,118 +36,34 @@ export function getActiveSessionId(): string {
   return activeSessionId;
 }
 
-/**
- * Adds cookies to a browser context
- * @param context Playwright browser context
- * @param cookies Array of cookies to add
- */
-export async function addCookiesToContext(
-  context: BrowserContext,
-  cookies: Cookie[],
-): Promise<void> {
-  if (!cookies || cookies.length === 0) {
-    return;
-  }
-
-  try {
-    process.stderr.write(
-      `[SessionManager] Adding ${cookies.length} cookies to browser context\n`,
-    );
-    await context.addCookies(cookies);
-    process.stderr.write(
-      `[SessionManager] Successfully added cookies to browser context\n`,
-    );
-  } catch (error) {
-    process.stderr.write(
-      `[SessionManager] Error adding cookies to browser context: ${
-        error instanceof Error ? error.message : String(error)
-      }\n`,
-    );
-  }
-}
-
-// Function to create a new Browserbase session using Stagehand
+// Function to create a new TzafonWright session
 export async function createNewBrowserSession(
   newSessionId: string,
   config: Config,
-  resumeSessionId?: string,
 ): Promise<BrowserSession> {
-  if (!config.browserbaseApiKey) {
-    throw new Error("Browserbase API Key is missing in the configuration.");
-  }
-  if (!config.browserbaseProjectId) {
-    throw new Error("Browserbase Project ID is missing in the configuration.");
+  if (!config.proxyUrl) {
+    throw new Error("TzafonWright proxy URL is missing in the configuration.");
   }
 
   try {
     process.stderr.write(
-      `[SessionManager] ${resumeSessionId ? "Resuming" : "Creating"} Stagehand session ${newSessionId}...\n`,
+      `[SessionManager] Creating TzafonWright session ${newSessionId}...\n`,
     );
 
-    // Create and initialize Stagehand instance using shared function
-    const stagehand = await createStagehandInstance(
+    // Create and initialize TzafonWright client instance
+    const client = await createTzafonWrightClient(
       config,
-      {
-        ...(resumeSessionId && { browserbaseSessionID: resumeSessionId }),
-      },
+      { proxyUrl: config.proxyUrl },
       newSessionId,
     );
 
-    // Get the page and browser from Stagehand
-    const page = stagehand.page as unknown as Page;
-    const browser = page.context().browser();
-
-    if (!browser) {
-      throw new Error("Failed to get browser from Stagehand page context");
-    }
-
-    const browserbaseSessionId = stagehand.browserbaseSessionID;
-
     process.stderr.write(
-      `[SessionManager] Stagehand initialized with Browserbase session: ${browserbaseSessionId}\n`,
+      `[SessionManager] TzafonWright client initialized for session: ${newSessionId}\n`,
     );
-    process.stderr.write(
-      `[SessionManager] Browserbase Live Debugger URL: https://www.browserbase.com/sessions/${browserbaseSessionId}\n`,
-    );
-
-    // Set up disconnect handler
-    browser.on("disconnected", () => {
-      process.stderr.write(`[SessionManager] Disconnected: ${newSessionId}\n`);
-      browsers.delete(newSessionId);
-      if (defaultBrowserSession && defaultBrowserSession.browser === browser) {
-        process.stderr.write(
-          `[SessionManager] Disconnected (default): ${newSessionId}\n`,
-        );
-        defaultBrowserSession = null;
-      }
-      if (
-        activeSessionId === newSessionId &&
-        newSessionId !== defaultSessionId
-      ) {
-        process.stderr.write(
-          `[SessionManager] WARN - Active session disconnected, resetting to default: ${newSessionId}\n`,
-        );
-        setActiveSessionId(defaultSessionId);
-      }
-    });
-
-    // Add cookies to the context if they are provided in the config
-    if (
-      config.cookies &&
-      Array.isArray(config.cookies) &&
-      config.cookies.length > 0
-    ) {
-      await addCookiesToContext(
-        page.context() as BrowserContext,
-        config.cookies,
-      );
-    }
 
     const sessionObj: BrowserSession = {
-      browser,
-      page,
-      sessionId: browserbaseSessionId!,
-      stagehand,
+      client,
+      sessionId: newSessionId,
     };
 
     browsers.set(newSessionId, sessionObj);
@@ -182,19 +96,19 @@ async function closeBrowserGracefully(
   session: BrowserSession | undefined | null,
   sessionIdToLog: string,
 ): Promise<void> {
-  // Close Stagehand instance which handles browser cleanup
-  if (session?.stagehand) {
+  // Close TzafonWright client which handles browser cleanup
+  if (session?.client) {
     try {
       process.stderr.write(
-        `[SessionManager] Closing Stagehand for session: ${sessionIdToLog}\n`,
+        `[SessionManager] Closing TzafonWright client for session: ${sessionIdToLog}\n`,
       );
-      await session.stagehand.close();
+      await session.client.close();
       process.stderr.write(
-        `[SessionManager] Successfully closed Stagehand and browser for session: ${sessionIdToLog}\n`,
+        `[SessionManager] Successfully closed TzafonWright client for session: ${sessionIdToLog}\n`,
       );
     } catch (closeError) {
       process.stderr.write(
-        `[SessionManager] WARN - Error closing Stagehand for session ${sessionIdToLog}: ${
+        `[SessionManager] WARN - Error closing TzafonWright client for session ${sessionIdToLog}: ${
           closeError instanceof Error ? closeError.message : String(closeError)
         }\n`,
       );
@@ -214,10 +128,7 @@ export async function ensureDefaultSessionInternal(
     process.stderr.write(
       `[SessionManager] Default session ${sessionId} not found, creating.\n`,
     );
-  } else if (
-    !defaultBrowserSession.browser.isConnected() ||
-    defaultBrowserSession.page.isClosed()
-  ) {
+  } else if (!defaultBrowserSession.client) {
     needsReCreation = true;
     process.stderr.write(
       `[SessionManager] Default session ${sessionId} is stale, recreating.\n`,
@@ -297,7 +208,7 @@ export async function getSession(
   }
 
   // Validate the found session
-  if (!sessionObj.browser.isConnected() || sessionObj.page.isClosed()) {
+  if (!sessionObj.client) {
     process.stderr.write(
       `[SessionManager] WARN - Found session ${sessionId} is stale, removing.\n`,
     );

@@ -1,29 +1,19 @@
-import type { Cookie } from "playwright-core";
 import type { Config } from "../config.d.ts";
-import type { AvailableModel } from "./types/models.js";
 
 export type ToolCapability = "core" | string;
 
 // Define Command Line Options Structure
 export type CLIOptions = {
-  proxies?: boolean;
-  advancedStealth?: boolean;
-  contextId?: string;
-  persist?: boolean;
+  proxyUrl?: string;
   port?: number;
   host?: string;
-  cookies?: Cookie[];
   browserWidth?: number;
   browserHeight?: number;
-  modelName?: typeof AvailableModel;
-  modelApiKey?: string;
 };
 
 // Default Configuration Values
 const defaultConfig: Config = {
-  browserbaseApiKey: process.env.BROWSERBASE_API_KEY ?? "",
-  browserbaseProjectId: process.env.BROWSERBASE_PROJECT_ID ?? "",
-  proxies: false,
+  proxyUrl: process.env.TZAFONWRIGHT_PROXY_URL ?? "ws://34.123.107.160:80",
   server: {
     port: undefined,
     host: undefined,
@@ -32,8 +22,6 @@ const defaultConfig: Config = {
     browserWidth: 1024,
     browserHeight: 768,
   },
-  cookies: undefined,
-  modelName: "google/gemini-2.0-flash", // Default Model
 };
 
 // Resolve final configuration by merging defaults, file config, and CLI options
@@ -42,32 +30,12 @@ export async function resolveConfig(cliOptions: CLIOptions): Promise<Config> {
   // Order: Defaults < File Config < CLI Overrides
   const mergedConfig = mergeConfig(defaultConfig, cliConfig);
 
-  // --- Add Browserbase Env Vars ---
-  if (!mergedConfig.modelApiKey) {
-    mergedConfig.modelApiKey = process.env.GEMINI_API_KEY;
-  }
-
-  // --------------------------------
-
-  // Basic validation for Browserbase keys - provide dummy values if not set
-  if (!mergedConfig.browserbaseApiKey) {
+  // Basic validation for proxy URL
+  if (!mergedConfig.proxyUrl) {
     console.warn(
-      "Warning: BROWSERBASE_API_KEY environment variable not set. Using dummy value.",
+      "Warning: TZAFONWRIGHT_PROXY_URL environment variable not set. Using default proxy URL: ws://34.123.107.160:80",
     );
-    mergedConfig.browserbaseApiKey = "dummy-browserbase-api-key";
-  }
-  if (!mergedConfig.browserbaseProjectId) {
-    console.warn(
-      "Warning: BROWSERBASE_PROJECT_ID environment variable not set. Using dummy value.",
-    );
-    mergedConfig.browserbaseProjectId = "dummy-browserbase-project-id";
-  }
-
-  if (!mergedConfig.modelApiKey) {
-    console.warn(
-      "Warning: MODEL_API_KEY environment variable not set. Using dummy value.",
-    );
-    mergedConfig.modelApiKey = "dummy-api-key";
+    mergedConfig.proxyUrl = "ws://34.123.107.160:80";
   }
 
   return mergedConfig;
@@ -78,25 +46,15 @@ export async function configFromCLIOptions(
   cliOptions: CLIOptions,
 ): Promise<Config> {
   return {
-    browserbaseApiKey: process.env.BROWSERBASE_API_KEY ?? "",
-    browserbaseProjectId: process.env.BROWSERBASE_PROJECT_ID ?? "",
+    proxyUrl: cliOptions.proxyUrl || process.env.TZAFONWRIGHT_PROXY_URL || "",
     server: {
       port: cliOptions.port,
       host: cliOptions.host,
-    },
-    proxies: cliOptions.proxies,
-    context: {
-      contextId: cliOptions.contextId,
-      persist: cliOptions.persist,
     },
     viewPort: {
       browserWidth: cliOptions.browserWidth,
       browserHeight: cliOptions.browserHeight,
     },
-    advancedStealth: cliOptions.advancedStealth,
-    cookies: cliOptions.cookies,
-    modelName: cliOptions.modelName,
-    modelApiKey: cliOptions.modelApiKey,
   };
 }
 
@@ -118,27 +76,21 @@ function mergeConfig(base: Config, overrides: Config): Config {
 
   // For each property in overrides
   for (const [key, value] of Object.entries(overridesFiltered)) {
-    if (key === "context" && value && result.context) {
-      // Special handling for context object to ensure deep merge
-      result.context = {
-        ...result.context,
-        ...(value as Config["context"]),
-      };
-    } else if (
+    if (
       value &&
       typeof value === "object" &&
       !Array.isArray(value) &&
       result[key as keyof Config] &&
       typeof result[key as keyof Config] === "object"
     ) {
-      // Deep merge for other nested objects
-      result[key as keyof Config] = {
+      // Deep merge for nested objects
+      (result as Record<string, unknown>)[key] = {
         ...(result[key as keyof Config] as object),
         ...value,
-      } as unknown;
+      };
     } else {
       // Simple override for primitives, arrays, etc.
-      result[key as keyof Config] = value as unknown;
+      (result as Record<string, unknown>)[key] = value;
     }
   }
 

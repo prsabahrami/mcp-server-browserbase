@@ -6,12 +6,15 @@ import screenshotTool from "./screenshot.js";
 import sessionTools from "./session.js";
 import {
   createSessionTool,
+  createBulkSessionsTool,
   listSessionsTool,
   closeSessionTool,
+  closeBulkSessionsTool,
   navigateWithSessionTool,
   actWithSessionTool,
   extractWithSessionTool,
   observeWithSessionTool,
+  screenshotWithSessionTool,
 } from "./multiSession.js";
 
 // Export individual tools
@@ -25,12 +28,15 @@ export { default as sessionTools } from "./session.js";
 // Multi-session tools array
 export const multiSessionTools = [
   createSessionTool,
+  createBulkSessionsTool,
   listSessionsTool,
   closeSessionTool,
+  closeBulkSessionsTool,
   navigateWithSessionTool,
   actWithSessionTool,
   extractWithSessionTool,
   observeWithSessionTool,
+  screenshotWithSessionTool,
 ];
 
 // Export all tools as array

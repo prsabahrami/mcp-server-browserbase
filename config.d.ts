@@ -1,44 +1,9 @@
-import type { Cookie } from "playwright-core";
-import type { AvailableModelSchema } from "./src/types/models.js";
-
 export type Config = {
   /**
-   * Browserbase API Key to authenticate requests
+   * TzafonWright proxy WebSocket URL
+   * @example "ws://34.123.107.160:80"
    */
-  browserbaseApiKey: string;
-  /**
-   * Browserbase Project ID associated with the API key
-   */
-  browserbaseProjectId: string;
-  /**
-   * Whether or not to use Browserbase proxies
-   * https://docs.browserbase.com/features/proxies
-   *
-   * @default false
-   */
-  proxies?: boolean;
-  /**
-   * Use advanced stealth mode. Only available to Browserbase Scale Plan users.
-   *
-   * @default false
-   */
-  advancedStealth?: boolean;
-  /**
-   * Potential Browserbase Context to use
-   * Would be a context ID
-   */
-  context?: {
-    /**
-     * The ID of the context to use
-     */
-    contextId?: string;
-    /**
-     * Whether or not to persist the context
-     *
-     * @default true
-     */
-    persist?: boolean;
-  };
+  proxyUrl: string;
   /**
    * The viewport of the browser
    * @default { browserWidth: 1024, browserHeight: 768 }
@@ -53,11 +18,6 @@ export type Config = {
      */
     browserHeight?: number;
   };
-  /**
-   * Cookies to inject into the Browserbase context
-   * Format: Array of cookie objects with name, value, domain, and optional path, expires, httpOnly, secure, sameSite
-   */
-  cookies?: Cookie[];
   /**
    * Server configuration for MCP transport layer
    *
@@ -86,16 +46,4 @@ export type Config = {
      */
     host?: string;
   };
-  /**
-   * The Model that Stagehand uses
-   * Available models: OpenAI, Claude, Gemini, Cerebras, Groq, and other providers
-   *
-   * @default "google/gemini-2.0-flash"
-   */
-  modelName?: AvailableModelSchema;
-  /**
-   * API key for the custom model provider
-   * Required when using a model other than the default google/gemini-2.0-flash
-   */
-  modelApiKey?: string;
 };

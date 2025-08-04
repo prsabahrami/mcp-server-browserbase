@@ -2,7 +2,6 @@ import { z } from "zod";
 import type { Tool, ToolSchema, ToolResult } from "./tool.js";
 import type { Context } from "../context.js";
 import type { ToolActionResult } from "../types/types.js";
-import { Browserbase } from "@browserbasehq/sdk";
 
 // Import SessionManager functions
 import {
@@ -27,9 +26,9 @@ const CreateSessionInputSchema = z.object({
 type CreateSessionInput = z.infer<typeof CreateSessionInputSchema>;
 
 const createSessionSchema: ToolSchema<typeof CreateSessionInputSchema> = {
-  name: "browserbase_session_create",
+  name: "tzafonwright_session_create",
   description:
-    "Create or reuse a single cloud browser session using Browserbase with fully initialized Stagehand. WARNING: This tool is for SINGLE browser workflows only. If you need multiple browser sessions running simultaneously (parallel scraping, A/B testing, multiple accounts), use 'multi_browserbase_stagehand_session_create' instead. This creates one browser session with all configuration flags (proxies, stealth, viewport, cookies, etc.) and initializes Stagehand to work with that session. Updates the active session.",
+    "Create or reuse a single browser session using TzafonWright. WARNING: This tool is for SINGLE browser workflows only. If you need multiple browser sessions running simultaneously (parallel scraping, A/B testing, multiple accounts), use 'multi_tzafonwright_session_create' instead. This creates one browser session and initializes TzafonWright client to work with that session. Updates the active session.",
   inputSchema: CreateSessionInputSchema,
 };
 
@@ -44,8 +43,7 @@ async function handleCreateSession(
       let targetSessionId: string;
 
       if (params.sessionId) {
-        const projectId = config.browserbaseProjectId || "";
-        targetSessionId = `${params.sessionId}_${projectId}`;
+        targetSessionId = `${params.sessionId}_tzafonwright`;
         process.stderr.write(
           `[tool.createSession] Attempting to create/assign session with specified ID: ${targetSessionId}`,
         );
@@ -57,49 +55,26 @@ async function handleCreateSession(
       if (targetSessionId === defaultSessionId) {
         session = await ensureDefaultSessionInternal(config);
       } else {
-        // When user provides a sessionId, we want to resume that Browserbase session
-        session = await createNewBrowserSession(
-          targetSessionId,
-          config,
-          params.sessionId,
-        );
+        // Create a new TzafonWright session
+        session = await createNewBrowserSession(targetSessionId, config);
       }
 
-      if (
-        !session ||
-        !session.browser ||
-        !session.page ||
-        !session.sessionId ||
-        !session.stagehand
-      ) {
+      if (!session || !session.client || !session.sessionId) {
         throw new Error(
-          `SessionManager failed to return a valid session object with actualSessionId for ID: ${targetSessionId}`,
+          `SessionManager failed to return a valid session object for ID: ${targetSessionId}`,
         );
       }
 
       context.currentSessionId = targetSessionId;
-      const bb = new Browserbase({
-        apiKey: config.browserbaseApiKey,
-      });
-      const debugUrl = (await bb.sessions.debug(session.sessionId))
-        .debuggerFullscreenUrl;
       process.stderr.write(
-        `[tool.connected] Successfully connected to Browserbase session. Internal ID: ${targetSessionId}, Actual ID: ${session.sessionId}`,
-      );
-
-      process.stderr.write(
-        `[SessionManager] Browserbase Live Session View URL: https://www.browserbase.com/sessions/${session.sessionId}`,
-      );
-
-      process.stderr.write(
-        `[SessionManager] Browserbase Live Debugger URL: ${debugUrl}`,
+        `[tool.connected] Successfully connected to TzafonWright session. Internal ID: ${targetSessionId}`,
       );
 
       return {
         content: [
           {
             type: "text",
-            text: `Browserbase Live Session View URL: https://www.browserbase.com/sessions/${session.sessionId}\nBrowserbase Live Debugger URL: ${debugUrl}`,
+            text: `TzafonWright session created successfully: ${session.sessionId}`,
           },
         ],
       };
@@ -142,11 +117,10 @@ async function handleCloseSession(context: Context): Promise<ToolResult> {
   const action = async (): Promise<ToolActionResult> => {
     // Store the current session ID before it's potentially changed.
     const previousSessionId = context.currentSessionId;
-    let stagehandClosedSuccessfully = false;
-    let stagehandCloseErrorMessage = "";
+    let clientClosedSuccessfully = false;
+    let clientCloseErrorMessage = "";
 
-    // Step 1: Attempt to get the session and close Stagehand
-    let browserbaseSessionId: string | undefined;
+    // Step 1: Attempt to get the session and close TzafonWright client
     try {
       const session = await getSession(
         previousSessionId,
@@ -154,40 +128,31 @@ async function handleCloseSession(context: Context): Promise<ToolResult> {
         false,
       );
 
-      if (session && session.stagehand) {
-        // Store the actual Browserbase session ID for the replay URL
-        browserbaseSessionId = session.sessionId;
-
+      if (session && session.client) {
         process.stderr.write(
-          `[tool.closeSession] Attempting to close Stagehand for session: ${previousSessionId || "default"} (Browserbase ID: ${browserbaseSessionId})`,
+          `[tool.closeSession] Attempting to close TzafonWright client for session: ${previousSessionId || "default"}`,
         );
 
-        // Use Stagehand's close method which handles browser cleanup properly
-        await session.stagehand.close();
-        stagehandClosedSuccessfully = true;
+        // Use TzafonWright client's close method which handles cleanup properly
+        await session.client.close();
+        clientClosedSuccessfully = true;
 
         process.stderr.write(
-          `[tool.closeSession] Stagehand and browser connection for session (${previousSessionId}) closed successfully.`,
+          `[tool.closeSession] TzafonWright client for session (${previousSessionId}) closed successfully.`,
         );
 
         // Clean up the session from tracking
         await cleanupSession(previousSessionId);
-
-        if (browserbaseSessionId) {
-          process.stderr.write(
-            `[tool.closeSession] View session replay at https://www.browserbase.com/sessions/${browserbaseSessionId}`,
-          );
-        }
       } else {
         process.stderr.write(
-          `[tool.closeSession] No Stagehand instance found for session: ${previousSessionId || "default/unknown"}`,
+          `[tool.closeSession] No TzafonWright client found for session: ${previousSessionId || "default/unknown"}`,
         );
       }
     } catch (error: unknown) {
-      stagehandCloseErrorMessage =
+      clientCloseErrorMessage =
         error instanceof Error ? error.message : String(error);
       process.stderr.write(
-        `[tool.closeSession] Error retrieving or closing Stagehand (session ID was ${previousSessionId || "default/unknown"}): ${stagehandCloseErrorMessage}`,
+        `[tool.closeSession] Error retrieving or closing TzafonWright client (session ID was ${previousSessionId || "default/unknown"}): ${clientCloseErrorMessage}`,
       );
     }
 
@@ -199,25 +164,22 @@ async function handleCloseSession(context: Context): Promise<ToolResult> {
     );
 
     // Step 3: Determine the result message
-    if (stagehandCloseErrorMessage && !stagehandClosedSuccessfully) {
+    if (clientCloseErrorMessage && !clientClosedSuccessfully) {
       throw new Error(
-        `Failed to close the Stagehand session (session ID in context was ${previousSessionId || "default/unknown"}). Error: ${stagehandCloseErrorMessage}. Session context has been reset to default.`,
+        `Failed to close the TzafonWright session (session ID in context was ${previousSessionId || "default/unknown"}). Error: ${clientCloseErrorMessage}. Session context has been reset to default.`,
       );
     }
 
-    if (stagehandClosedSuccessfully) {
-      let successMessage = `Browserbase session (${previousSessionId || "default"}) closed successfully via Stagehand. Context reset to default.`;
-      if (browserbaseSessionId && previousSessionId !== defaultSessionId) {
-        successMessage += ` View replay at https://www.browserbase.com/sessions/${browserbaseSessionId}`;
-      }
+    if (clientClosedSuccessfully) {
+      const successMessage = `TzafonWright session (${previousSessionId || "default"}) closed successfully. Context reset to default.`;
       return { content: [{ type: "text", text: successMessage }] };
     }
 
-    // No Stagehand instance was found
+    // No TzafonWright client was found
     let infoMessage =
-      "No active Stagehand session found to close. Session context has been reset to default.";
+      "No active TzafonWright session found to close. Session context has been reset to default.";
     if (previousSessionId && previousSessionId !== defaultSessionId) {
-      infoMessage = `No active Stagehand session found for session ID '${previousSessionId}'. The context has been reset to default.`;
+      infoMessage = `No active TzafonWright session found for session ID '${previousSessionId}'. The context has been reset to default.`;
     }
     return { content: [{ type: "text", text: infoMessage }] };
   };
